@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SYD Engineers — Timesheets</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #f2f1ed; --surface: #ffffff; --surface2: #f7f6f3;
+  --border: #e2e1db; --border2: #d0cfc8;
+  --text: #1a1917; --text2: #6b6a65; --text3: #a09f9a;
+  --accent: #1d4ed8; --accent-bg: #eff6ff; --accent-border: #bfdbfe;
+  --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
+  --red: #dc2626; --red-bg: #fef2f2;
+  --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a;
+  --radius: 10px; --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08),0 2px 4px rgba(0,0,0,0.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
+
+/* LOGIN */
+#screen-login{align-items:center;justify-content:center;background:var(--bg)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;width:360px;box-shadow:var(--shadow-md)}
+.login-logo{font-size:13px;font-weight:500;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:1.5rem}
+.login-title{font-size:22px;font-weight:600;color:var(--text);margin-bottom:.25rem}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:2rem}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px;letter-spacing:.04em}
+.field input,.field select{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;background:var(--surface2);color:var(--text);transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(29,78,216,.1);background:#fff}
+.btn-primary{width:100%;padding:10px;border:none;border-radius:var(--radius-sm);background:var(--text);color:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.btn-primary:hover{opacity:.85}
+.login-error{margin-top:.75rem;font-size:13px;color:var(--red);display:none}
+
+/* APP SHELL */
+#screen-app{flex-direction:column}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-brand{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.topbar-brand span{font-size:12px;font-weight:400;color:var(--text3)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.user-pill{font-size:12px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px}
+.tab-bar{display:flex;gap:2px;background:var(--surface2);border-radius:var(--radius-sm);padding:3px}
+.tab{padding:5px 14px;border-radius:5px;font-size:13px;color:var(--text2);cursor:pointer;border:none;background:transparent;font-family:inherit;white-space:nowrap}
+.tab.active{background:var(--surface);color:var(--text);font-weight:500;box-shadow:var(--shadow)}
+.btn-logout{font-size:12px;color:var(--text3);cursor:pointer;background:none;border:none;font-family:inherit;padding:4px 8px;border-radius:4px}
+.btn-logout:hover{color:var(--red);background:var(--red-bg)}
+.main{flex:1;padding:1.5rem;max-width:1100px;margin:0 auto;width:100%}
+
+/* PANELS */
+.panel{display:none}
+.panel.active{display:block}
+
+/* WEEK HEADER */
+.week-bar{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap}
+.week-nav button{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text);font-family:inherit}
+.week-nav button:hover{background:var(--surface2)}
+.week-display{font-size:13px;font-weight:500;color:var(--text);min-width:180px;text-align:center}
+.week-starting{font-size:12px;color:var(--text3)}
+.readonly-banner{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;color:#92400e;margin-bottom:1rem;display:none}
+
+/* TIMESHEET TABLE */
+.sheet-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:1rem}
+.sheet-header{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.sheet-header-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em}
+.sheet-meta{font-size:12px;color:var(--text3)}
+.ts-table{width:100%;border-collapse:collapse}
+.ts-table th{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px;text-align:center;border-bottom:1px solid var(--border);background:var(--surface2)}
+.ts-table th.left{text-align:left;padding-left:1rem}
+.ts-table td{padding:5px;border-bottom:1px solid #f3f2ef;vertical-align:middle}
+.ts-table tr:last-child td{border-bottom:none}
+.ts-table td.proj-cell{padding-left:1rem;min-width:220px}
+.proj-info{display:flex;flex-direction:column;gap:2px}
+.proj-name{font-size:13px;font-weight:500;color:var(--text)}
+.proj-num{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.work-type-badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;letter-spacing:.03em}
+.wt-admin{background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe}
+.wt-holiday{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.wt-annual{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.wt-sick{background:var(--red-bg);color:var(--red);border:1px solid #fecaca}
+.h-input{width:58px;padding:5px 4px;border:1px solid var(--border);border-radius:5px;font-size:13px;text-align:center;background:var(--surface2);color:var(--text);font-family:inherit;transition:border-color .15s,box-shadow .15s}
+.h-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(29,78,216,.1);background:#fff}
+.h-input.has-val{background:var(--accent-bg);border-color:var(--accent-border);font-weight:500;color:var(--accent)}
+.h-input:disabled{background:var(--surface2);color:var(--text3);cursor:not-allowed;border-color:var(--border)}
+td.row-total{font-size:13px;font-weight:600;text-align:center;color:var(--text);font-family:'DM Mono',monospace}
+td.row-total.has-val{color:var(--accent)}
+tr.totals-row td{background:var(--surface2);border-top:2px solid var(--border2);font-weight:700;font-size:13px;text-align:center;padding:9px 5px;color:var(--text);font-family:'DM Mono',monospace}
+tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3)}
+.del-row{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:2px 6px;border-radius:4px}
+.del-row:hover{color:var(--red);background:var(--red-bg)}
+.del-row:disabled{cursor:not-allowed;opacity:.3}
+
+/* ADD ROW */
+.add-entry-bar{padding:.75rem 1rem;border-top:1px solid var(--border);background:var(--surface2)}
+.add-entry-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.add-field{display:flex;flex-direction:column;gap:4px}
+.add-field label{font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.04em}
+.add-field select,.add-field input{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)}
+.add-field select:focus,.add-field input:focus{outline:none;border-color:var(--accent)}
+.add-field.grow{flex:1;min-width:180px}
+.btn-add-row{padding:7px 16px;border:none;border-radius:var(--radius-sm);background:var(--text);color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn-add-row:hover{opacity:.82}
+.btn-add-row:disabled{opacity:.4;cursor:not-allowed}
+
+/* BOTTOM BAR */
+.sheet-footer{display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;flex-wrap:wrap;gap:10px}
+.grand-total-pill{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:8px 16px;font-size:13px;color:var(--text2)}
+.grand-total-pill strong{font-size:22px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace;margin-right:3px}
+.btn-submit{padding:9px 22px;border:none;border-radius:var(--radius-sm);background:var(--green);color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.btn-submit:hover{opacity:.88}
+.btn-submit:disabled{opacity:.4;cursor:not-allowed}
+.toast{display:none;font-size:13px;padding:7px 14px;border-radius:var(--radius-sm);background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.toast.error{background:var(--red-bg);color:var(--red);border-color:#fecaca}
+
+/* PAST ENTRIES */
+.entry-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:.75rem;box-shadow:var(--shadow)}
+.entry-card-head{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.entry-week{font-weight:600;font-size:14px;color:var(--text)}
+.entry-submitted{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--green-bg);color:var(--green);font-weight:500;border:1px solid var(--green-border)}
+.entry-table{width:100%;border-collapse:collapse;font-size:13px}
+.entry-table th{font-size:11px;color:var(--text3);font-weight:500;padding:6px 10px;text-align:center;border-bottom:1px solid var(--border);background:var(--surface2)}
+.entry-table th:first-child,.entry-table th:nth-child(2){text-align:left}
+.entry-table td{padding:7px 10px;border-bottom:1px solid #f3f2ef;text-align:center;color:var(--text)}
+.entry-table td:first-child,.entry-table td:nth-child(2){text-align:left}
+.entry-table tr:last-child td{border-bottom:none}
+.entry-total-row td{font-weight:700;background:var(--surface2);border-top:1px solid var(--border);font-family:'DM Mono',monospace}
+.empty-state{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
+
+/* ADMIN */
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+@media(max-width:700px){.admin-grid{grid-template-columns:1fr}}
+.admin-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--shadow)}
+.admin-card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem}
+.item-list{display:flex;flex-direction:column;gap:6px;margin-bottom:.75rem;max-height:320px;overflow-y:auto}
+.item-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;gap:8px}
+.item-row-left{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.item-row-name{font-weight:500;color:var(--text)}
+.item-row-sub{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.item-actions{display:flex;gap:4px;align-items:center;flex-shrink:0}
+.btn-sm{padding:3px 8px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);font-family:inherit;color:var(--text2)}
+.btn-sm:hover{background:var(--red-bg);color:var(--red);border-color:#fecaca}
+.btn-sm.edit{color:var(--accent)}
+.btn-sm.edit:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+.btn-sm.save{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.btn-sm.save:hover{opacity:.8}
+.inline-form{display:flex;gap:6px;flex-wrap:wrap}
+.inline-form input,.inline-form select{flex:1;min-width:80px;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text)}
+.inline-form input:focus,.inline-form select:focus{outline:none;border-color:var(--accent)}
+.btn-inline{padding:7px 14px;border:none;border-radius:var(--radius-sm);background:var(--text);color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn-inline:hover{opacity:.82}
+.pin-edit-input{width:80px;padding:4px 8px;border:1px solid var(--accent-border);border-radius:4px;font-family:'DM Mono',monospace;font-size:13px;background:var(--accent-bg);color:var(--text)}
+
+/* PROJECTS READ-ONLY VIEW */
+.proj-readonly-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto}
+.proj-readonly-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px}
+.proj-readonly-num{font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);font-weight:500;min-width:40px}
+.proj-readonly-name{font-size:13px;color:var(--text)}
+
+/* SUBMISSIONS TABLE */
+.subs-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.subs-table{width:100%;border-collapse:collapse}
+.subs-table th{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2)}
+.subs-table td{padding:9px 12px;border-bottom:1px solid #f3f2ef;font-size:13px;color:var(--text);vertical-align:middle}
+.subs-table tr:last-child td{border-bottom:none}
+.subs-table tr:hover td{background:var(--surface2)}
+.badge-role{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.badge-admin{background:#fdf4ff;color:#9333ea;border:1px solid #e9d5ff}
+.badge-user{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.7);display:none;align-items:center;justify-content:center;z-index:999;font-size:13px;color:var(--text2)}
+.spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.notice{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:1rem;line-height:1.6}
+.section-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:1.25rem}
+.mono{font-family:'DM Mono',monospace}
+@media(max-width:600px){.main{padding:1rem .75rem}.topbar{padding:0 .75rem}}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loading" style="display:none"><div class="spinner"></div>Loading...</div>
+
+<!-- LOGIN -->
+<div class="screen active" id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">SYD Engineers</div>
+    <div class="login-title">Sign in</div>
+    <div class="login-sub">Enter your username and PIN to continue</div>
+    <div class="field"><label>Username</label><input type="text" id="login-username" placeholder="e.g. jason" autocomplete="username"/></div>
+    <div class="field"><label>PIN</label><input type="password" id="login-pin" placeholder="••••••" autocomplete="current-password" maxlength="10"/></div>
+    <button class="btn-primary" onclick="doLogin()">Sign in</button>
+    <div class="login-error" id="login-error">Incorrect username or PIN. Try again.</div>
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);font-size:12px;color:var(--text3)">Default admin: <span class="mono">admin</span> / <span class="mono">1234</span></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="screen" id="screen-app">
+  <div class="topbar">
+    <div class="topbar-brand">SYD Engineers <span>Timesheets</span></div>
+    <div class="topbar-right">
+      <div class="tab-bar" id="tab-bar">
+        <button class="tab active" onclick="switchTab('timesheet',this)">My Week</button>
+        <button class="tab" onclick="switchTab('past',this)">Past Entries</button>
+        <button class="tab admin-only" onclick="switchTab('admin',this)" style="display:none">Admin</button>
+      </div>
+      <div class="user-pill" id="user-pill">—</div>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- TIMESHEET PANEL -->
+    <div class="panel active" id="panel-timesheet">
+      <div class="week-bar">
+        <div class="week-nav"><button onclick="shiftWeek(-1)">&#8592; Prev</button></div>
+        <div>
+          <div class="week-display" id="week-display"></div>
+          <div class="week-starting" id="week-starting"></div>
+        </div>
+        <div class="week-nav"><button onclick="shiftWeek(1)">Next &#8594;</button></div>
+      </div>
+      <div class="readonly-banner" id="readonly-banner">&#128274; This week has ended — entries are read-only. You can still view but not edit.</div>
+
+      <div class="sheet-card">
+        <div class="sheet-header">
+          <div class="sheet-header-title">Project Details</div>
+          <div class="sheet-meta" id="sheet-meta"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="ts-table" id="ts-table">
+            <thead>
+              <tr>
+                <th class="left">Project / Description</th>
+                <th class="left">Work Type</th>
+                <th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th>
+                <th>TOTAL</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ts-body"></tbody>
+            <tfoot id="ts-foot"></tfoot>
+          </table>
+        </div>
+        <div class="add-entry-bar" id="add-entry-bar">
+          <div class="add-entry-form">
+            <div class="add-field">
+              <label>WORK TYPE <span style="color:var(--red)">*</span></label>
+              <select id="wt-select">
+                <option value="admin">Administration</option>
+                <option value="holiday">Public Holiday</option>
+                <option value="annual">Annual Leave</option>
+                <option value="sick">Personal Leave (sick)</option>
+              </select>
+            </div>
+            <div class="add-field grow">
+              <label>PROJECT <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+              <select id="proj-select"><option value="">— None —</option></select>
+            </div>
+            <div class="add-field">
+              <label>DAY <span style="color:var(--red)">*</span></label>
+              <select id="day-select">
+                <option value="all">All days (split evenly)</option>
+                <option value="Mon">Monday</option>
+                <option value="Tue">Tuesday</option>
+                <option value="Wed">Wednesday</option>
+                <option value="Thu">Thursday</option>
+                <option value="Fri">Friday</option>
+              </select>
+            </div>
+            <div class="add-field">
+              <label>HOURS <span style="color:var(--red)">*</span></label>
+              <input type="number" id="hours-input" min="0.5" max="24" step="0.5" placeholder="e.g. 2" style="width:80px"/>
+            </div>
+            <button class="btn-add-row" id="btn-add-row" onclick="addEntry()">+ Add Row</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-footer">
+        <div class="grand-total-pill">Total: <strong id="grand-total">0</strong> hrs</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="toast" id="toast"></div>
+          <button class="btn-submit" id="btn-submit" onclick="submitWeek()">Submit Week &#8594;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAST ENTRIES PANEL -->
+    <div class="panel" id="panel-past">
+      <div class="section-title">Past Entries</div>
+      <div id="past-list"><div class="empty-state">No past submissions found.</div></div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div class="panel" id="panel-admin">
+      <div class="section-title">Admin</div>
+      <div class="admin-grid">
+        <!-- Projects (read-only from Airtable) -->
+        <div class="admin-card">
+          <div class="admin-card-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Projects</span>
+            <button class="btn-sm edit" onclick="refreshProjects()">&#8635; Refresh</button>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Managed in Airtable — refresh to sync latest.</div>
+          <div class="proj-readonly-list" id="admin-proj-list"></div>
+        </div>
+        <!-- Users -->
+        <div class="admin-card">
+          <div class="admin-card-title">Users</div>
+          <div class="item-list" id="admin-user-list"></div>
+          <div class="inline-form" style="margin-top:.5rem">
+            <input type="text" id="au-username" placeholder="Username"/>
+            <input type="text" id="au-name" placeholder="Full name"/>
+            <input type="password" id="au-pin" placeholder="PIN" style="max-width:80px"/>
+            <select id="au-role"><option value="user">User</option><option value="admin">Admin</option></select>
+            <button class="btn-inline" onclick="addUser()">Add</button>
+          </div>
+        </div>
+      </div>
+      <!-- All submissions -->
+      <div class="admin-card">
+        <div class="admin-card-title">All Submissions</div>
+        <div class="subs-card">
+          <table class="subs-table">
+            <thead><tr><th>User</th><th>Week</th><th>Total hrs</th><th>Submitted</th></tr></thead>
+            <tbody id="admin-subs-body"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:1.5rem">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+// CONFIG — replace with your Airtable credentials
+// ═══════════════════════════════════
+const AT_BASE = window.AIRTABLE_BASE || 'YOUR_BASE_ID';
+const AT_KEY  = window.AIRTABLE_KEY  || 'YOUR_API_KEY';
+const AT_URL  = 'https://api.airtable.com/v0/' + AT_BASE;
+const HEADERS = { 'Authorization': 'Bearer ' + AT_KEY, 'Content-Type': 'application/json' };
+
+const DAYS = ['Mon','Tue','Wed','Thu','Fri'];
+const WT_LABELS = { admin:'Administration', holiday:'Public Holiday', annual:'Annual Leave', sick:'Personal Leave (sick)' };
+const WT_CLASS  = { admin:'wt-admin', holiday:'wt-holiday', annual:'wt-annual', sick:'wt-sick' };
+
+let currentUser = null;
+let weekOffset  = 0;
+let allProjects = [];
+let allUsers    = [];
+let rows = [];
+
+// ─── DEMO DATA ───
+const DEMO_MODE = (AT_BASE === 'YOUR_BASE_ID');
+const demoUsers = [
+  { id:'u1', fields:{ Username:'admin', PIN:'1234', Name:'Administrator', Role:'admin' } },
+  { id:'u2', fields:{ Username:'jason', PIN:'5678', Name:'Jason Smith', Role:'user' } }
+];
+const demoProjects = [
+  { id:'p1', fields:{ Number:'3328', Name:'35B Hospital Road, Bulli' } },
+  { id:'p2', fields:{ Number:'3216', Name:'94A Spofforth Street, Cremorne' } },
+  { id:'p3', fields:{ Number:'3163', Name:'262 Concord Road, Concord West' } }
+];
+let demoSubmissions = [];
+
+// ─── AIRTABLE ───
+async function atGet(table, params='') {
+  if (DEMO_MODE) return getDemoData(table);
+  const r = await fetch(AT_URL+'/'+table+'?'+params, { headers: HEADERS });
+  const d = await r.json(); return d.records || [];
+}
+async function atCreate(table, fields) {
+  if (DEMO_MODE) { const rec={id:'d'+Date.now(),fields}; if(table==='Timesheets')demoSubmissions.push(rec); return rec; }
+  const r = await fetch(AT_URL+'/'+table, { method:'POST', headers:HEADERS, body:JSON.stringify({fields}) });
+  return await r.json();
+}
+async function atPatch(table, id, fields) {
+  if (DEMO_MODE) {
+    const u = demoUsers.find(u=>u.id===id); if(u) Object.assign(u.fields, fields); return;
+  }
+  await fetch(AT_URL+'/'+table+'/'+id, { method:'PATCH', headers:HEADERS, body:JSON.stringify({fields}) });
+}
+async function atDelete(table, id) {
+  if (DEMO_MODE) return;
+  await fetch(AT_URL+'/'+table+'/'+id, { method:'DELETE', headers:HEADERS });
+}
+function getDemoData(table) {
+  if (table==='Users') return [...demoUsers];
+  if (table==='Projects') return [...demoProjects];
+  if (table==='Timesheets') return [...demoSubmissions];
+  return [];
+}
+
+// ─── LOADING ───
+function showLoading(v) { document.getElementById('loading').style.display = v?'flex':'none'; }
+
+// ─── DATES ───
+function getMonday(offset) {
+  const d=new Date(), day=d.getDay(), diff=d.getDate()-day+(day===0?-6:1);
+  const m=new Date(d); m.setDate(diff+offset*7); m.setHours(0,0,0,0); return m;
+}
+function weekKey(offset) { return getMonday(offset).toISOString().slice(0,10); }
+function fmtWeek(offset) {
+  const m=getMonday(offset),f=new Date(m); f.setDate(m.getDate()+4);
+  const o={day:'numeric',month:'short'};
+  return m.toLocaleDateString('en-AU',o)+' \u2013 '+f.toLocaleDateString('en-AU',{...o,year:'numeric'});
+}
+function fmtMon(offset) {
+  return 'Week starting: '+getMonday(offset).toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+// Is the given weekOffset in the past (week has ended)?
+function isWeekReadOnly(offset) {
+  // A week is read-only if its Friday has passed
+  const friday = getMonday(offset);
+  friday.setDate(friday.getDate() + 4);
+  friday.setHours(23, 59, 59, 999);
+  return new Date() > friday;
+}
+
+// ─── LOGIN ───
+async function doLogin() {
+  const un = document.getElementById('login-username').value.trim().toLowerCase();
+  const pin = document.getElementById('login-pin').value.trim();
+  if (!un || !pin) return;
+  showLoading(true);
+  try {
+    const users = await atGet('Users', 'filterByFormula='+encodeURIComponent(`{Username}="${un}"`));
+    const match = users.find(u => u.fields.Username?.toLowerCase()===un && String(u.fields.PIN)===pin);
+    if (!match) { document.getElementById('login-error').style.display='block'; showLoading(false); return; }
+    currentUser = { id:match.id, ...match.fields };
+    document.getElementById('login-error').style.display='none';
+    enterApp();
+  } catch(e) {
+    document.getElementById('login-error').textContent='Connection error. Check Airtable config.';
+    document.getElementById('login-error').style.display='block';
+  }
+  showLoading(false);
+}
+document.getElementById('login-pin').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('login-username').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pin').focus(); });
+
+async function enterApp() {
+  document.getElementById('screen-login').classList.remove('active');
+  document.getElementById('screen-app').classList.add('active');
+  document.getElementById('user-pill').textContent = currentUser.Name||currentUser.Username;
+  if (currentUser.Role==='admin') {
+    document.querySelectorAll('.admin-only').forEach(el=>el.style.display='');
+  }
+  showLoading(true);
+  allProjects = await atGet('Projects');
+  allUsers    = await atGet('Users');
+  showLoading(false);
+  populateProjSelect();
+  updateWeekUI();
+  loadSheet();
+  if (currentUser.Role==='admin') { renderAdminProjects(); renderAdminUsers(); loadAdminSubs(); }
+}
+
+function doLogout() {
+  currentUser=null; weekOffset=0; rows=[];
+  document.getElementById('screen-app').classList.remove('active');
+  document.getElementById('screen-login').classList.add('active');
+  document.getElementById('login-username').value='';
+  document.getElementById('login-pin').value='';
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display='none');
+  switchTab('timesheet', document.querySelector('.tab'));
+}
+
+// ─── WEEK NAV ───
+function shiftWeek(dir) { weekOffset+=dir; updateWeekUI(); loadSheet(); }
+function updateWeekUI() {
+  const ro = isWeekReadOnly(weekOffset);
+  document.getElementById('week-display').textContent = fmtWeek(weekOffset);
+  document.getElementById('week-starting').textContent = fmtMon(weekOffset);
+  document.getElementById('sheet-meta').textContent = 'NAME: '+(currentUser?.Name||'');
+  document.getElementById('readonly-banner').style.display = ro ? 'block' : 'none';
+  document.getElementById('add-entry-bar').style.display = ro ? 'none' : '';
+  document.getElementById('btn-submit').disabled = ro;
+}
+
+// ─── PROJECT DROPDOWN ───
+function populateProjSelect() {
+  const sel = document.getElementById('proj-select');
+  sel.innerHTML = '<option value="">— None —</option>';
+  allProjects.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = (p.fields.Number ? '['+p.fields.Number+'] ' : '') + p.fields.Name;
+    sel.appendChild(o);
+  });
+}
+
+// ─── SHEET ───
+function loadSheet() {
+  const key = 'ts_draft_'+currentUser.id+'_'+weekKey(weekOffset);
+  const saved = localStorage.getItem(key);
+  rows = saved ? JSON.parse(saved) : [];
+  renderSheet();
+}
+function saveLocal() {
+  const key = 'ts_draft_'+currentUser.id+'_'+weekKey(weekOffset);
+  localStorage.setItem(key, JSON.stringify(rows));
+}
+
+function fmt(n) { return n===0?'':(n%1===0?String(n):n.toFixed(1)); }
+function rowTotal(r) { return DAYS.reduce((s,d)=>s+(parseFloat(r[d])||0),0); }
+function grandTotal() { return rows.reduce((s,r)=>s+rowTotal(r),0); }
+
+function renderSheet() {
+  const ro = isWeekReadOnly(weekOffset);
+  const tbody = document.getElementById('ts-body');
+  const tfoot = document.getElementById('ts-foot');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:2rem;font-size:13px">'+(ro?'No entries for this week.':'No entries yet. Use the form below to add rows.')+'</td></tr>';
+  } else {
+    tbody.innerHTML = rows.map((r,i) => {
+      const rt = rowTotal(r);
+      const projPart = r.projName
+        ? `<div class="proj-info"><div class="proj-name">${r.projName}</div><div class="proj-num">${r.projNum||''}</div></div>`
+        : `<div class="proj-info"><div class="proj-name" style="color:var(--text3)">—</div></div>`;
+      return `<tr>
+        <td class="proj-cell">${projPart}</td>
+        <td><span class="work-type-badge ${WT_CLASS[r.workType]||''}">${WT_LABELS[r.workType]||r.workType}</span></td>
+        ${DAYS.map(d => {
+          const v = parseFloat(r[d])||0;
+          return `<td><input class="h-input${v?' has-val':''}" type="number" min="0" max="24" step="0.5" value="${v||''}" placeholder="—" ${ro?'disabled':''} oninput="setHours(${i},'${d}',this)"/></td>`;
+        }).join('')}
+        <td class="row-total${rt?' has-val':''}">${fmt(rt)||'—'}</td>
+        <td>${ro?'':`<button class="del-row" onclick="delRow(${i})" title="Remove">&#215;</button>`}</td>
+      </tr>`;
+    }).join('');
+  }
+  const colTotals = DAYS.map(d => rows.reduce((s,r)=>s+(parseFloat(r[d])||0),0));
+  const gt = grandTotal();
+  tfoot.innerHTML = `<tr class="totals-row">
+    <td class="left" colspan="2">Totals</td>
+    ${colTotals.map(ct=>`<td>${fmt(ct)||'—'}</td>`).join('')}
+    <td>${fmt(gt)||'—'}</td><td></td>
+  </tr>`;
+  document.getElementById('grand-total').textContent = gt%1===0?gt:gt.toFixed(1);
+}
+
+function setHours(i, day, input) {
+  const v = parseFloat(input.value)||0;
+  rows[i][day] = v; input.classList.toggle('has-val',v>0);
+  saveLocal(); renderSheet();
+}
+function delRow(i) { rows.splice(i,1); saveLocal(); renderSheet(); }
+
+function addEntry() {
+  if (isWeekReadOnly(weekOffset)) return;
+  const wt  = document.getElementById('wt-select').value;
+  const day = document.getElementById('day-select').value;
+  const hrsRaw = document.getElementById('hours-input').value;
+  if (!hrsRaw || parseFloat(hrsRaw)<=0) { showToast('Hours are required','error'); document.getElementById('hours-input').focus(); return; }
+  const hrs = parseFloat(hrsRaw);
+
+  let projId='', projNum='', projName='';
+  const selOpt = document.getElementById('proj-select');
+  if (selOpt.value) {
+    const proj = allProjects.find(p=>p.id===selOpt.value);
+    projId = selOpt.value;
+    projNum = proj?.fields?.Number||'';
+    projName = proj?.fields?.Name||'';
+  }
+
+  const row = { workType:wt, projId, projNum, projName, Mon:0,Tue:0,Wed:0,Thu:0,Fri:0 };
+  if (day==='all') { DAYS.forEach(d=>row[d]=Math.round(hrs/5*2)/2); }
+  else row[day]=hrs;
+  rows.push(row); saveLocal(); renderSheet();
+  document.getElementById('hours-input').value='';
+}
+
+// ─── SUBMIT ───
+async function submitWeek() {
+  if (isWeekReadOnly(weekOffset)) return;
+  if (!rows.length) { showToast('No entries to submit','error'); return; }
+  const gt = grandTotal();
+  if (gt===0) { showToast('All hours are zero','error'); return; }
+  showLoading(true);
+  try {
+    const wk = weekKey(weekOffset);
+    const weekLabel = fmtWeek(weekOffset);
+    for (const r of rows) {
+      const rt = rowTotal(r); if (rt===0) continue;
+      await atCreate('Timesheets', {
+        UserID: currentUser.id, UserName: currentUser.Name||currentUser.Username,
+        Week: wk, WeekLabel: weekLabel,
+        ProjectID: r.projId||'', ProjectNumber: r.projNum||'',
+        ProjectName: r.projName||WT_LABELS[r.workType]||r.workType,
+        WorkType: r.workType,
+        Mon: r.Mon||0, Tue: r.Tue||0, Wed: r.Wed||0, Thu: r.Thu||0, Fri: r.Fri||0,
+        Total: rt, SubmittedAt: new Date().toISOString()
+      });
+    }
+    showToast('Week submitted successfully!');
+    if (currentUser.Role==='admin') loadAdminSubs();
+  } catch(e) { showToast('Submission failed. Try again.','error'); }
+  showLoading(false);
+}
+
+// ─── TOAST ───
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = (type==='error'?'':'\u2713 ')+msg;
+  t.className = 'toast'+(type?' '+type:'');
+  t.style.display='block';
+  setTimeout(()=>t.style.display='none',3500);
+}
+
+// ─── TABS ───
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='past') loadPastEntries();
+  if (name==='admin') { renderAdminProjects(); renderAdminUsers(); loadAdminSubs(); }
+}
+
+// ─── PAST ENTRIES ───
+async function loadPastEntries() {
+  showLoading(true);
+  try {
+    let recs = await atGet('Timesheets');
+    if (currentUser.Role!=='admin') recs = recs.filter(r=>r.fields.UserID===currentUser.id);
+    const groups = {};
+    recs.forEach(r => {
+      const key = (r.fields.UserName||r.fields.UserID)+'|'+r.fields.Week;
+      if (!groups[key]) groups[key]={ user:r.fields.UserName||'', week:r.fields.Week, weekLabel:r.fields.WeekLabel||r.fields.Week, rows:[], total:0 };
+      groups[key].rows.push(r.fields);
+      groups[key].total += (r.fields.Total||0);
+    });
+    const sorted = Object.values(groups).sort((a,b)=>b.week.localeCompare(a.week));
+    const list = document.getElementById('past-list');
+    if (!sorted.length) { list.innerHTML='<div class="empty-state">No past submissions found.</div>'; showLoading(false); return; }
+    list.innerHTML = sorted.map(g=>`
+      <div class="entry-card">
+        <div class="entry-card-head">
+          <div>
+            <div class="entry-week">${g.weekLabel}</div>
+            ${currentUser.Role==='admin'?`<div style="font-size:12px;color:var(--text3);margin-top:2px">${g.user}</div>`:''}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:13px;color:var(--text2)">${g.total%1===0?g.total:g.total.toFixed(1)} hrs</span>
+            <span class="entry-submitted">Submitted</span>
+          </div>
+        </div>
+        <table class="entry-table">
+          <thead><tr><th>Project</th><th>Work Type</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Total</th></tr></thead>
+          <tbody>
+            ${g.rows.map(r=>`<tr>
+              <td>${r.ProjectNumber?'['+r.ProjectNumber+'] ':''} ${r.ProjectName||'—'}</td>
+              <td><span class="work-type-badge ${WT_CLASS[r.WorkType]||''}">${WT_LABELS[r.WorkType]||r.WorkType}</span></td>
+              ${DAYS.map(d=>`<td>${r[d]||'—'}</td>`).join('')}
+              <td style="font-weight:600">${(r.Total%1===0?r.Total:r.Total?.toFixed(1))||'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr class="entry-total-row"><td colspan="7" style="text-align:right;padding-right:1rem">Week Total</td><td>${g.total%1===0?g.total:g.total.toFixed(1)}</td></tr></tfoot>
+        </table>
+      </div>`).join('');
+  } catch(e) { document.getElementById('past-list').innerHTML='<div class="empty-state">Error loading entries.</div>'; }
+  showLoading(false);
+}
+
+// ─── ADMIN: PROJECTS (read-only, Airtable source of truth) ───
+function renderAdminProjects() {
+  const list = document.getElementById('admin-proj-list');
+  list.innerHTML = allProjects.length
+    ? allProjects.map(p=>`
+      <div class="proj-readonly-item">
+        <span class="proj-readonly-num">${p.fields.Number||'—'}</span>
+        <span class="proj-readonly-name">${p.fields.Name}</span>
+      </div>`).join('')
+    : '<div style="color:var(--text3);font-size:13px;padding:.5rem">No projects in Airtable yet.</div>';
+}
+async function refreshProjects() {
+  showLoading(true);
+  allProjects = await atGet('Projects');
+  populateProjSelect();
+  renderAdminProjects();
+  showLoading(false);
+}
+
+// ─── ADMIN: USERS ───
+function renderAdminUsers() {
+  const list = document.getElementById('admin-user-list');
+  list.innerHTML = allUsers.length
+    ? allUsers.map(u=>`
+      <div class="item-row" id="urow-${u.id}">
+        <div class="item-row-left">
+          <div class="item-row-name">${u.fields.Name||u.fields.Username} <span class="badge-role ${u.fields.Role==='admin'?'badge-admin':'badge-user'}">${u.fields.Role||'user'}</span></div>
+          <div class="item-row-sub">${u.fields.Username}</div>
+        </div>
+        <div class="item-actions" id="uactions-${u.id}">
+          <span style="font-size:12px;color:var(--text3);margin-right:4px">PIN:</span>
+          <span class="item-row-sub" id="upin-display-${u.id}" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text2)">${u.fields.PIN}</span>
+          <button class="btn-sm edit" onclick="editPin('${u.id}','${u.fields.PIN}')" id="upin-edit-btn-${u.id}">Edit PIN</button>
+          <button class="btn-sm" onclick="deleteUser('${u.id}')">Remove</button>
+        </div>
+      </div>`).join('')
+    : '<div style="color:var(--text3);font-size:13px">No users.</div>';
+}
+
+function editPin(uid, currentPin) {
+  const displayEl = document.getElementById('upin-display-'+uid);
+  const editBtn   = document.getElementById('upin-edit-btn-'+uid);
+  const actionsEl = document.getElementById('uactions-'+uid);
+  // Replace display with input + save
+  displayEl.style.display='none';
+  editBtn.style.display='none';
+  const inp = document.createElement('input');
+  inp.type='text'; inp.value=currentPin; inp.className='pin-edit-input';
+  inp.maxLength=10; inp.id='upin-input-'+uid;
+  const saveBtn = document.createElement('button');
+  saveBtn.className='btn-sm save'; saveBtn.textContent='Save';
+  saveBtn.onclick = () => savePin(uid, inp.value.trim());
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className='btn-sm'; cancelBtn.textContent='Cancel';
+  cancelBtn.onclick = () => renderAdminUsers();
+  actionsEl.insertBefore(cancelBtn, editBtn);
+  actionsEl.insertBefore(saveBtn, cancelBtn);
+  actionsEl.insertBefore(inp, saveBtn);
+}
+
+async function savePin(uid, newPin) {
+  if (!newPin) { alert('PIN cannot be empty'); return; }
+  showLoading(true);
+  await atPatch('Users', uid, { PIN: newPin });
+  if (DEMO_MODE) { const u=demoUsers.find(u=>u.id===uid); if(u) u.fields.PIN=newPin; allUsers=[...demoUsers]; }
+  else allUsers = await atGet('Users');
+  renderAdminUsers();
+  showLoading(false);
+}
+
+async function addUser() {
+  const username = document.getElementById('au-username').value.trim();
+  const name     = document.getElementById('au-name').value.trim();
+  const pin      = document.getElementById('au-pin').value.trim();
+  const role     = document.getElementById('au-role').value;
+  if (!username||!pin) { alert('Username and PIN required'); return; }
+  showLoading(true);
+  const rec = await atCreate('Users', { Username:username, Name:name||username, PIN:pin, Role:role });
+  if (DEMO_MODE) { demoUsers.push(rec); allUsers=[...demoUsers]; }
+  else allUsers = await atGet('Users');
+  document.getElementById('au-username').value='';
+  document.getElementById('au-name').value='';
+  document.getElementById('au-pin').value='';
+  renderAdminUsers();
+  showLoading(false);
+}
+
+async function deleteUser(id) {
+  if (!confirm('Remove this user?')) return;
+  showLoading(true);
+  await atDelete('Users', id);
+  if (DEMO_MODE) { const i=demoUsers.findIndex(u=>u.id===id); if(i>-1)demoUsers.splice(i,1); allUsers=[...demoUsers]; }
+  else allUsers = await atGet('Users');
+  renderAdminUsers();
+  showLoading(false);
+}
+
+// ─── ADMIN: ALL SUBMISSIONS ───
+async function loadAdminSubs() {
+  showLoading(true);
+  try {
+    const recs = await atGet('Timesheets');
+    const groups = {};
+    recs.forEach(r => {
+      const key = r.fields.UserName+'|'+r.fields.Week;
+      if (!groups[key]) groups[key]={ user:r.fields.UserName, weekLabel:r.fields.WeekLabel||r.fields.Week, week:r.fields.Week, total:0, submitted:r.fields.SubmittedAt };
+      groups[key].total += r.fields.Total||0;
+    });
+    const rows2 = Object.values(groups).sort((a,b)=>b.week.localeCompare(a.week));
+    const tbody = document.getElementById('admin-subs-body');
+    tbody.innerHTML = rows2.length
+      ? rows2.map(g=>`<tr>
+          <td>${g.user}</td><td>${g.weekLabel}</td>
+          <td style="font-family:'DM Mono',monospace">${g.total%1===0?g.total:g.total.toFixed(1)}</td>
+          <td style="color:var(--text3);font-size:12px">${g.submitted?new Date(g.submitted).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):''}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:1.5rem">No submissions yet.</td></tr>';
+  } catch(e) {}
+  showLoading(false);
+}
+
+// ─── DEMO NOTICE ───
+if (DEMO_MODE) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const n = document.createElement('div');
+    n.className='notice';
+    n.innerHTML='<strong>Demo mode</strong> \u2014 Airtable not connected. Data saves locally only. Replace <code>YOUR_BASE_ID</code> and <code>YOUR_API_KEY</code> in the script to connect.';
+    document.querySelector('.main').prepend(n);
+  });
+}
+</script>
+</body>
+</html>
