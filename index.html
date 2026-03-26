@@ -383,8 +383,12 @@ async function atGet(table, params='') {
 }
 async function atCreate(table, fields) {
   if (DEMO_MODE) { const rec={id:'d'+Date.now(),fields}; if(table==='Timesheets')demoSubmissions.push(rec); return rec; }
-  const r = await fetch(AT_URL+'/'+table, { method:'POST', headers:HEADERS, body:JSON.stringify({fields}) });
+  const url = AT_URL + '/' + table;
+  console.log('POST to:', url);
+  console.log('Payload:', JSON.stringify({fields}));
+  const r = await fetch(url, { method:'POST', headers:HEADERS, body:JSON.stringify({fields}) });
   const d = await r.json();
+  console.log('Response:', r.status, JSON.stringify(d));
   if (!r.ok) {
     console.error('Airtable error:', d);
     throw new Error(d?.error?.message || JSON.stringify(d));
