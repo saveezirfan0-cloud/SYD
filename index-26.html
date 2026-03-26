@@ -384,7 +384,12 @@ async function atGet(table, params='') {
 async function atCreate(table, fields) {
   if (DEMO_MODE) { const rec={id:'d'+Date.now(),fields}; if(table==='Timesheets')demoSubmissions.push(rec); return rec; }
   const r = await fetch(AT_URL+'/'+table, { method:'POST', headers:HEADERS, body:JSON.stringify({fields}) });
-  return await r.json();
+  const d = await r.json();
+  if (!r.ok) {
+    console.error('Airtable error:', d);
+    throw new Error(d?.error?.message || JSON.stringify(d));
+  }
+  return d;
 }
 async function atPatch(table, id, fields) {
   if (DEMO_MODE) {
@@ -617,7 +622,8 @@ async function submitWeek() {
     if (currentUser.Role==='admin') loadAdminSubs();
   } catch(e) {
     showLoading(false);
-    showToast('Submission failed. Try again.','error');
+    console.error('Submit error:', e);
+    showToast('Failed: ' + e.message, 'error');
   }
 }
 
