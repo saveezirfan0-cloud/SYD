@@ -248,7 +248,7 @@ tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sa
         <div class="add-entry-bar" id="add-entry-bar">
           <div class="add-entry-form">
             <div class="add-field">
-              <label>WORK TYPE <span style="color:var(--red)">*</span></label>
+              <label>WORK TYPE</label>
               <select id="wt-select">
                 <option value="admin">Administration</option>
                 <option value="holiday">Public Holiday</option>
@@ -261,9 +261,8 @@ tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sa
               <select id="proj-select"><option value="">— None —</option></select>
             </div>
             <div class="add-field">
-              <label>DAY <span style="color:var(--red)">*</span></label>
+              <label>DAY</label>
               <select id="day-select">
-                <option value="all">All days (split evenly)</option>
                 <option value="Mon">Monday</option>
                 <option value="Tue">Tuesday</option>
                 <option value="Wed">Wednesday</option>
@@ -272,7 +271,7 @@ tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sa
               </select>
             </div>
             <div class="add-field">
-              <label>HOURS <span style="color:var(--red)">*</span></label>
+              <label>HOURS</label>
               <input type="number" id="hours-input" min="0.5" max="24" step="0.5" placeholder="e.g. 2" style="width:80px"/>
             </div>
             <button class="btn-add-row" id="btn-add-row" onclick="addEntry()">+ Add Row</button>
@@ -609,8 +608,7 @@ function addEntry() {
   }
 
   const row = { _id:null, workType:wt, projId, projNum, projName, Mon:0,Tue:0,Wed:0,Thurs:0,Fri:0 };
-  if (day==='all') { DAYS.forEach(d=>row[d]=Math.round(hrs/5*2)/2); }
-  else row[day]=hrs;
+  row[day] = hrs;
   rows.push(row);
   renderSheet();
   document.getElementById('hours-input').value='';
