@@ -703,10 +703,10 @@ async function loadPastEntries() {
   showLoading(true);
   try {
     let recs = await atGet('Timesheets');
-    if (currentUser.Role!=='admin') recs = recs.filter(r=>r.fields.UserID===currentUser.id);
+    if (currentUser.Role!=='admin') recs = recs.filter(r=>r.fields.USERID===currentUser.id || r.fields.UserName===(currentUser.Name||currentUser.Username));
     const groups = {};
     recs.forEach(r => {
-      const key = (r.fields.UserName||r.fields.UserID)+'|'+r.fields.Week;
+      const key = (r.fields.UserName||r.fields.USERID)+'|'+r.fields.Week;
       if (!groups[key]) groups[key]={ user:r.fields.UserName||'', week:r.fields.Week, weekLabel:r.fields.WeekLabel||r.fields.Week, rows:[], total:0 };
       groups[key].rows.push(r.fields);
       groups[key].total += (r.fields.Total||0);
