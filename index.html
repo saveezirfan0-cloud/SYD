@@ -237,7 +237,7 @@ tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sa
               <tr>
                 <th class="left">Project / Description</th>
                 <th class="left">Work Type</th>
-                <th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th>
+                <th>MON</th><th>TUE</th><th>WED</th><th>THURS</th><th>FRI</th>
                 <th>TOTAL</th><th></th>
               </tr>
             </thead>
@@ -345,7 +345,7 @@ const AT_KEY  = window.AIRTABLE_KEY  || 'REDACTED_AIRTABLE_KEY';
 const AT_URL  = 'https://api.airtable.com/v0/' + AT_BASE;
 const HEADERS = { 'Authorization': 'Bearer ' + AT_KEY, 'Content-Type': 'application/json' };
 
-const DAYS = ['Mon','Tue','Wed','Thu','Fri'];
+const DAYS = ['Mon','Tue','Wed','Thurs','Fri'];
 const WT_LABELS = { admin:'Administration', holiday:'Public Holiday', annual:'Annual Leave', sick:'Personal Leave (sick)' };
 const WT_CLASS  = { admin:'wt-admin', holiday:'wt-holiday', annual:'wt-annual', sick:'wt-sick' };
 
@@ -399,7 +399,10 @@ async function atPatch(table, id, fields) {
   if (DEMO_MODE) {
     const u = demoUsers.find(u=>u.id===id); if(u) Object.assign(u.fields, fields); return;
   }
-  await fetch(AT_URL+'/'+table+'/'+id, { method:'PATCH', headers:HEADERS, body:JSON.stringify({fields}) });
+  const r = await fetch(AT_URL+'/'+table+'/'+id, { method:'PATCH', headers:HEADERS, body:JSON.stringify({fields}) });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d?.error?.message || JSON.stringify(d));
+  return d;
 }
 async function atDelete(table, id) {
   if (DEMO_MODE) return;
@@ -512,15 +515,31 @@ function populateProjSelect() {
 }
 
 // ─── SHEET ───
-function loadSheet() {
-  const key = 'ts_draft_'+currentUser.id+'_'+weekKey(weekOffset);
-  const saved = localStorage.getItem(key);
-  rows = saved ? JSON.parse(saved) : [];
+let deletedIds = []; // track Airtable record IDs deleted this session
+
+async function loadSheet() {
+  showLoading(true);
+  rows = [];
+  deletedIds = [];
+  try {
+    const wk = weekKey(weekOffset);
+    const formula = encodeURIComponent(`AND({USERID}="${currentUser.id}",{Week}="${wk}")`);
+    const recs = await atGet('Timesheets', 'filterByFormula='+formula);
+    rows = recs.map(r => ({
+      _id: r.id,
+      workType: r.fields.WorkType||'admin',
+      projId:   r.fields.ProjectID||'',
+      projNum:  r.fields.ProjectNumber||'',
+      projName: r.fields.ProjectName||'',
+      Mon:   r.fields.Mon||0,
+      Tue:   r.fields.Tue||0,
+      Wed:   r.fields.Wed||0,
+      Thurs: r.fields.Thurs||0,
+      Fri:   r.fields.Fri||0,
+    }));
+  } catch(e) { console.error('loadSheet error:', e); }
+  showLoading(false);
   renderSheet();
-}
-function saveLocal() {
-  const key = 'ts_draft_'+currentUser.id+'_'+weekKey(weekOffset);
-  localStorage.setItem(key, JSON.stringify(rows));
 }
 
 function fmt(n) { return n===0?'':(n%1===0?String(n):n.toFixed(1)); }
@@ -564,9 +583,13 @@ function renderSheet() {
 function setHours(i, day, input) {
   const v = parseFloat(input.value)||0;
   rows[i][day] = v; input.classList.toggle('has-val',v>0);
-  saveLocal(); renderSheet();
+  renderSheet();
 }
-function delRow(i) { rows.splice(i,1); saveLocal(); renderSheet(); }
+function delRow(i) {
+  if (rows[i]._id) deletedIds.push(rows[i]._id);
+  rows.splice(i,1);
+  renderSheet();
+}
 
 function addEntry() {
   if (isWeekReadOnly(weekOffset)) return;
@@ -585,10 +608,11 @@ function addEntry() {
     projName = proj?.fields?.Name||'';
   }
 
-  const row = { workType:wt, projId, projNum, projName, Mon:0,Tue:0,Wed:0,Thu:0,Fri:0 };
+  const row = { _id:null, workType:wt, projId, projNum, projName, Mon:0,Tue:0,Wed:0,Thurs:0,Fri:0 };
   if (day==='all') { DAYS.forEach(d=>row[d]=Math.round(hrs/5*2)/2); }
   else row[day]=hrs;
-  rows.push(row); saveLocal(); renderSheet();
+  rows.push(row);
+  renderSheet();
   document.getElementById('hours-input').value='';
 }
 
@@ -602,27 +626,51 @@ async function submitWeek() {
   try {
     const wk = weekKey(weekOffset);
     const weekLabel = fmtWeek(weekOffset);
-    for (const r of rows) {
-      const rt = rowTotal(r); if (rt===0) continue;
-      await atCreate('Timesheets', {
-        UserID: currentUser.id, UserName: currentUser.Name||currentUser.Username,
-        Week: wk, WeekLabel: weekLabel,
-        ProjectID: r.projId||'', ProjectNumber: r.projNum||'',
-        ProjectName: r.projName||WT_LABELS[r.workType]||r.workType,
-        WorkType: r.workType,
-        Mon: r.Mon||0, Tue: r.Tue||0, Wed: r.Wed||0, Thu: r.Thu||0, Fri: r.Fri||0,
-        Total: rt, SubmittedAt: new Date().toISOString()
+
+    // DELETE removed rows
+    for (const id of deletedIds) await atDelete('Timesheets', id);
+    deletedIds = [];
+
+    const toCreate = rows.filter(r => !r._id);
+    const toUpdate = rows.filter(r =>  r._id);
+
+    const buildFields = r => ({
+      USERID: currentUser.id, UserName: currentUser.Name||currentUser.Username,
+      Week: wk, WeekLabel: weekLabel,
+      ProjectID: r.projId||'', ProjectNumber: r.projNum||'',
+      ProjectName: r.projName||WT_LABELS[r.workType]||r.workType,
+      WorkType: r.workType,
+      Mon: r.Mon||0, Tue: r.Tue||0, Wed: r.Wed||0, Thurs: r.Thurs||0, Fri: r.Fri||0,
+      Total: rowTotal(r), SubmittedAt: new Date().toISOString()
+    });
+
+    // Batch CREATE (up to 10 per request)
+    for (let i=0; i<toCreate.length; i+=10) {
+      const batch = toCreate.slice(i, i+10);
+      const r = await fetch(AT_URL+'/Timesheets', {
+        method:'POST', headers:HEADERS,
+        body: JSON.stringify({ records: batch.map(r=>({ fields: buildFields(r) })) })
       });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error?.message || JSON.stringify(d));
+      d.records.forEach((rec, j) => { toCreate[i+j]._id = rec.id; });
     }
-    // Clear the local draft so it can't be re-submitted
-    const key = 'ts_draft_'+currentUser.id+'_'+wk;
-    localStorage.removeItem(key);
-    rows = [];
+
+    // Batch UPDATE (up to 10 per request)
+    for (let i=0; i<toUpdate.length; i+=10) {
+      const batch = toUpdate.slice(i, i+10);
+      const r = await fetch(AT_URL+'/Timesheets', {
+        method:'PATCH', headers:HEADERS,
+        body: JSON.stringify({ records: batch.map(r=>({ id: r._id, fields: buildFields(r) })) })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error?.message || JSON.stringify(d));
+    }
+
     showLoading(false);
-    // Switch to Past Entries so user can see the submission immediately
     const pastTab = Array.from(document.querySelectorAll('.tab')).find(t=>t.textContent.trim()==='Past Entries');
     switchTab('past', pastTab);
-    showToast('Week submitted successfully!');
+    showToast('Week saved successfully!');
     if (currentUser.Role==='admin') loadAdminSubs();
   } catch(e) {
     showLoading(false);
