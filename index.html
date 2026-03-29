@@ -700,8 +700,10 @@ function switchTab(name, btn) {
 async function loadPastEntries() {
   showLoading(true);
   try {
-    let recs = await atGet('Timesheets');
-    if (currentUser.Role!=='admin') recs = recs.filter(r=>r.fields.USERID===currentUser.id || r.fields.UserName===(currentUser.Name||currentUser.Username));
+    const formula = currentUser.Role === 'admin'
+      ? ''
+      : 'filterByFormula=' + encodeURIComponent(`{USERID}="${currentUser.id}"`);
+    let recs = await atGet('Timesheets', formula);
     const groups = {};
     recs.forEach(r => {
       const key = (r.fields.UserName||r.fields.USERID)+'|'+r.fields.Week;
