@@ -135,24 +135,28 @@ tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sa
 @media(max-width:700px){.admin-grid{grid-template-columns:1fr}}
 .admin-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--shadow)}
 .admin-card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem}
-.item-list{display:flex;flex-direction:column;gap:6px;margin-bottom:.75rem;max-height:320px;overflow-y:auto}
-.item-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;gap:8px}
+.item-list{display:flex;flex-direction:column;gap:6px;margin-bottom:.75rem;max-height:360px;overflow-y:auto}
+.item-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;gap:8px;flex-wrap:wrap}
 .item-row-left{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
 .item-row-name{font-weight:500;color:var(--text)}
 .item-row-sub{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
-.item-actions{display:flex;gap:4px;align-items:center;flex-shrink:0}
+.item-actions{display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap}
 .btn-sm{padding:3px 8px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);font-family:inherit;color:var(--text2)}
 .btn-sm:hover{background:var(--red-bg);color:var(--red);border-color:#fecaca}
 .btn-sm.edit{color:var(--accent)}
 .btn-sm.edit:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
 .btn-sm.save{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
 .btn-sm.save:hover{opacity:.8}
+.btn-sm.role-toggle{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe}
+.btn-sm.role-toggle:hover{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}
 .inline-form{display:flex;gap:6px;flex-wrap:wrap}
 .inline-form input,.inline-form select{flex:1;min-width:80px;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text)}
 .inline-form input:focus,.inline-form select:focus{outline:none;border-color:var(--accent)}
 .btn-inline{padding:7px 14px;border:none;border-radius:var(--radius-sm);background:var(--text);color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
 .btn-inline:hover{opacity:.82}
 .pin-edit-input{width:80px;padding:4px 8px;border:1px solid var(--accent-border);border-radius:4px;font-family:'DM Mono',monospace;font-size:13px;background:var(--accent-bg);color:var(--text)}
+.role-select-inline{padding:4px 8px;border:1px solid #ddd6fe;border-radius:4px;font-family:inherit;font-size:12px;background:#f5f3ff;color:#6d28d9;cursor:pointer}
+.role-select-inline:focus{outline:none;border-color:#a78bfa}
 
 /* PROJECTS READ-ONLY VIEW */
 .proj-readonly-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto}
@@ -383,15 +387,9 @@ async function atGet(table, params='') {
 async function atCreate(table, fields) {
   if (DEMO_MODE) { const rec={id:'d'+Date.now(),fields}; if(table==='Timesheets')demoSubmissions.push(rec); return rec; }
   const url = AT_URL + '/' + table;
-  console.log('POST to:', url);
-  console.log('Payload:', JSON.stringify({fields}));
   const r = await fetch(url, { method:'POST', headers:HEADERS, body:JSON.stringify({fields}) });
   const d = await r.json();
-  console.log('Response:', r.status, JSON.stringify(d));
-  if (!r.ok) {
-    console.error('Airtable error:', d);
-    throw new Error(d?.error?.message || JSON.stringify(d));
-  }
+  if (!r.ok) throw new Error(d?.error?.message || JSON.stringify(d));
   return d;
 }
 async function atPatch(table, id, fields) {
@@ -431,9 +429,7 @@ function fmtWeek(offset) {
 function fmtMon(offset) {
   return 'Week starting: '+getMonday(offset).toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
-// Is the given weekOffset in the past (week has ended)?
 function isWeekReadOnly(offset) {
-  // A week is read-only if its Friday has passed
   const friday = getMonday(offset);
   friday.setDate(friday.getDate() + 4);
   friday.setHours(23, 59, 59, 999);
@@ -514,7 +510,7 @@ function populateProjSelect() {
 }
 
 // ─── SHEET ───
-let deletedIds = []; // track Airtable record IDs deleted this session
+let deletedIds = [];
 
 async function loadSheet() {
   showLoading(true);
@@ -625,7 +621,6 @@ async function submitWeek() {
     const wk = weekKey(weekOffset);
     const weekLabel = fmtWeek(weekOffset);
 
-    // DELETE removed rows
     for (const id of deletedIds) await atDelete('Timesheets', id);
     deletedIds = [];
 
@@ -642,7 +637,6 @@ async function submitWeek() {
       Total: rowTotal(r), SubmittedAt: new Date().toISOString()
     });
 
-    // Batch CREATE (up to 10 per request)
     for (let i=0; i<toCreate.length; i+=10) {
       const batch = toCreate.slice(i, i+10);
       const r = await fetch(AT_URL+'/Timesheets', {
@@ -654,7 +648,6 @@ async function submitWeek() {
       d.records.forEach((rec, j) => { toCreate[i+j]._id = rec.id; });
     }
 
-    // Batch UPDATE (up to 10 per request)
     for (let i=0; i<toUpdate.length; i+=10) {
       const batch = toUpdate.slice(i, i+10);
       const r = await fetch(AT_URL+'/Timesheets', {
@@ -672,7 +665,6 @@ async function submitWeek() {
     if (currentUser.Role==='admin') loadAdminSubs();
   } catch(e) {
     showLoading(false);
-    console.error('Submit error:', e);
     showToast('Failed: ' + e.message, 'error');
   }
 }
@@ -697,29 +689,46 @@ function switchTab(name, btn) {
 }
 
 // ─── PAST ENTRIES ───
+// Only fetches records belonging to the logged-in user (server-side filter).
+// Admins fetch all records and see a username label on each entry group.
 async function loadPastEntries() {
   showLoading(true);
   try {
     const formula = currentUser.Role === 'admin'
       ? ''
       : 'filterByFormula=' + encodeURIComponent(`{USERID}="${currentUser.id}"`);
-    let recs = await atGet('Timesheets', formula);
+
+    const recs = await atGet('Timesheets', formula);
+
     const groups = {};
     recs.forEach(r => {
-      const key = (r.fields.UserName||r.fields.USERID)+'|'+r.fields.Week;
-      if (!groups[key]) groups[key]={ user:r.fields.UserName||'', week:r.fields.Week, weekLabel:r.fields.WeekLabel||r.fields.Week, rows:[], total:0 };
+      const key = (r.fields.USERID || r.fields.UserName) + '|' + r.fields.Week;
+      if (!groups[key]) groups[key] = {
+        user: r.fields.UserName || '',
+        week: r.fields.Week,
+        weekLabel: r.fields.WeekLabel || r.fields.Week,
+        rows: [],
+        total: 0
+      };
       groups[key].rows.push(r.fields);
-      groups[key].total += (r.fields.Total||0);
+      groups[key].total += (r.fields.Total || 0);
     });
-    const sorted = Object.values(groups).sort((a,b)=>b.week.localeCompare(a.week));
+
+    const sorted = Object.values(groups).sort((a, b) => b.week.localeCompare(a.week));
     const list = document.getElementById('past-list');
-    if (!sorted.length) { list.innerHTML='<div class="empty-state">No past submissions found.</div>'; showLoading(false); return; }
-    list.innerHTML = sorted.map(g=>`
+
+    if (!sorted.length) {
+      list.innerHTML = '<div class="empty-state">No past submissions found.</div>';
+      showLoading(false);
+      return;
+    }
+
+    list.innerHTML = sorted.map(g => `
       <div class="entry-card">
         <div class="entry-card-head">
           <div>
             <div class="entry-week">${g.weekLabel}</div>
-            ${currentUser.Role==='admin'?`<div style="font-size:12px;color:var(--text3);margin-top:2px">${g.user}</div>`:''}
+            ${currentUser.Role === 'admin' ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${g.user}</div>` : ''}
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <span style="font-size:13px;color:var(--text2)">${g.total%1===0?g.total:g.total.toFixed(1)} hrs</span>
@@ -729,25 +738,27 @@ async function loadPastEntries() {
         <table class="entry-table">
           <thead><tr><th>Project</th><th>Work Type</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Total</th></tr></thead>
           <tbody>
-            ${g.rows.map(r=>`<tr>
-              <td>${r.ProjectNumber?'['+r.ProjectNumber+'] ':''} ${r.ProjectName||'—'}</td>
+            ${g.rows.map(r => `<tr>
+              <td>${r.ProjectNumber ? '['+r.ProjectNumber+'] ' : ''}${r.ProjectName || '—'}</td>
               <td><span class="work-type-badge ${WT_CLASS[r.WorkType]||''}">${WT_LABELS[r.WorkType]||r.WorkType}</span></td>
-              ${DAYS.map(d=>`<td>${r[d]||'—'}</td>`).join('')}
-              <td style="font-weight:600">${(r.Total%1===0?r.Total:r.Total?.toFixed(1))||'—'}</td>
+              ${DAYS.map(d => `<td>${r[d] || '—'}</td>`).join('')}
+              <td style="font-weight:600">${(r.Total%1===0 ? r.Total : r.Total?.toFixed(1)) || '—'}</td>
             </tr>`).join('')}
           </tbody>
           <tfoot><tr class="entry-total-row"><td colspan="7" style="text-align:right;padding-right:1rem">Week Total</td><td>${g.total%1===0?g.total:g.total.toFixed(1)}</td></tr></tfoot>
         </table>
       </div>`).join('');
-  } catch(e) { document.getElementById('past-list').innerHTML='<div class="empty-state">Error loading entries.</div>'; }
+  } catch(e) {
+    document.getElementById('past-list').innerHTML = '<div class="empty-state">Error loading entries.</div>';
+  }
   showLoading(false);
 }
 
-// ─── ADMIN: PROJECTS (read-only, Airtable source of truth) ───
+// ─── ADMIN: PROJECTS ───
 function renderAdminProjects() {
   const list = document.getElementById('admin-proj-list');
   list.innerHTML = allProjects.length
-    ? allProjects.map(p=>`
+    ? allProjects.map(p => `
       <div class="proj-readonly-item">
         <span class="proj-readonly-num">${p.fields.Number||'—'}</span>
         <span class="proj-readonly-name">${p.fields.Name}</span>
@@ -766,39 +777,48 @@ async function refreshProjects() {
 function renderAdminUsers() {
   const list = document.getElementById('admin-user-list');
   list.innerHTML = allUsers.length
-    ? allUsers.map(u=>`
+    ? allUsers.map(u => `
       <div class="item-row" id="urow-${u.id}">
         <div class="item-row-left">
-          <div class="item-row-name">${u.fields.Name||u.fields.Username} <span class="badge-role ${u.fields.Role==='admin'?'badge-admin':'badge-user'}">${u.fields.Role||'user'}</span></div>
+          <div class="item-row-name">
+            ${u.fields.Name||u.fields.Username}
+            <span class="badge-role ${u.fields.Role==='admin'?'badge-admin':'badge-user'}">${u.fields.Role||'user'}</span>
+          </div>
           <div class="item-row-sub">${u.fields.Username}</div>
         </div>
         <div class="item-actions" id="uactions-${u.id}">
-          <span style="font-size:12px;color:var(--text3);margin-right:4px">PIN:</span>
+          <span style="font-size:12px;color:var(--text3);margin-right:2px">PIN:</span>
           <span class="item-row-sub" id="upin-display-${u.id}" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text2)">${u.fields.PIN}</span>
           <button class="btn-sm edit" onclick="editPin('${u.id}','${u.fields.PIN}')" id="upin-edit-btn-${u.id}">Edit PIN</button>
+          <button class="btn-sm role-toggle" onclick="editRole('${u.id}','${u.fields.Role||'user'}')" id="urole-btn-${u.id}">Change Role</button>
           <button class="btn-sm" onclick="deleteUser('${u.id}')">Remove</button>
         </div>
       </div>`).join('')
     : '<div style="color:var(--text3);font-size:13px">No users.</div>';
 }
 
+// ── Edit PIN inline ──
 function editPin(uid, currentPin) {
   const displayEl = document.getElementById('upin-display-'+uid);
   const editBtn   = document.getElementById('upin-edit-btn-'+uid);
   const actionsEl = document.getElementById('uactions-'+uid);
-  // Replace display with input + save
-  displayEl.style.display='none';
-  editBtn.style.display='none';
+
+  displayEl.style.display = 'none';
+  editBtn.style.display   = 'none';
+
   const inp = document.createElement('input');
-  inp.type='text'; inp.value=currentPin; inp.className='pin-edit-input';
-  inp.maxLength=10; inp.id='upin-input-'+uid;
+  inp.type = 'text'; inp.value = currentPin; inp.className = 'pin-edit-input';
+  inp.maxLength = 10; inp.id = 'upin-input-'+uid;
+
   const saveBtn = document.createElement('button');
-  saveBtn.className='btn-sm save'; saveBtn.textContent='Save';
+  saveBtn.className = 'btn-sm save'; saveBtn.textContent = 'Save';
   saveBtn.onclick = () => savePin(uid, inp.value.trim());
+
   const cancelBtn = document.createElement('button');
-  cancelBtn.className='btn-sm'; cancelBtn.textContent='Cancel';
+  cancelBtn.className = 'btn-sm'; cancelBtn.textContent = 'Cancel';
   cancelBtn.onclick = () => renderAdminUsers();
-  actionsEl.insertBefore(cancelBtn, editBtn);
+
+  actionsEl.insertBefore(cancelBtn, editBtn.nextSibling);
   actionsEl.insertBefore(saveBtn, cancelBtn);
   actionsEl.insertBefore(inp, saveBtn);
 }
@@ -808,6 +828,42 @@ async function savePin(uid, newPin) {
   showLoading(true);
   await atPatch('Users', uid, { PIN: newPin });
   if (DEMO_MODE) { const u=demoUsers.find(u=>u.id===uid); if(u) u.fields.PIN=newPin; allUsers=[...demoUsers]; }
+  else allUsers = await atGet('Users');
+  renderAdminUsers();
+  showLoading(false);
+}
+
+// ── Edit Role inline ──
+function editRole(uid, currentRole) {
+  const roleBtn   = document.getElementById('urole-btn-'+uid);
+  const actionsEl = document.getElementById('uactions-'+uid);
+
+  roleBtn.style.display = 'none';
+
+  const sel = document.createElement('select');
+  sel.className = 'role-select-inline';
+  sel.innerHTML = `<option value="user" ${currentRole==='user'?'selected':''}>User</option>
+                   <option value="admin" ${currentRole==='admin'?'selected':''}>Admin</option>`;
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-sm save'; saveBtn.textContent = 'Save';
+  saveBtn.onclick = () => saveRole(uid, sel.value);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-sm'; cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = () => renderAdminUsers();
+
+  // Insert before the Remove button (last child)
+  const removeBtn = actionsEl.lastElementChild;
+  actionsEl.insertBefore(cancelBtn, removeBtn);
+  actionsEl.insertBefore(saveBtn, cancelBtn);
+  actionsEl.insertBefore(sel, saveBtn);
+}
+
+async function saveRole(uid, newRole) {
+  showLoading(true);
+  await atPatch('Users', uid, { Role: newRole });
+  if (DEMO_MODE) { const u=demoUsers.find(u=>u.id===uid); if(u) u.fields.Role=newRole; allUsers=[...demoUsers]; }
   else allUsers = await atGet('Users');
   renderAdminUsers();
   showLoading(false);
