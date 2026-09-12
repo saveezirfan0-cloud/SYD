@@ -341,12 +341,13 @@ tr.totals-row td.left{text-align:left;padding-left:1rem;font-family:'DM Sans',sa
 
 <script>
 // ═══════════════════════════════════
-// CONFIG — replace with your Airtable credentials
+// CONFIG
+// The Airtable API key is NEVER held in the browser. All requests go through
+// the /api/airtable serverless proxy, which reads AIRTABLE_KEY server-side.
 // ═══════════════════════════════════
-const AT_BASE = window.AIRTABLE_BASE || 'appFGmCwiWShjFVrW';
-const AT_KEY  = window.AIRTABLE_KEY  || 'REDACTED_AIRTABLE_KEY';
-const AT_URL  = 'https://api.airtable.com/v0/' + AT_BASE;
-const HEADERS = { 'Authorization': 'Bearer ' + AT_KEY, 'Content-Type': 'application/json' };
+const AT_BASE = window.AIRTABLE_BASE || 'appFGmCwiWShjFVrW'; // used only to detect demo mode
+const AT_URL  = '/api/airtable';
+const HEADERS = { 'Content-Type': 'application/json' };
 
 const DAYS = ['Mon','Tue','Wed','Thurs','Fri'];
 const WT_LABELS = { admin:'Administration', holiday:'Public Holiday', annual:'Annual Leave', sick:'Personal Leave (sick)' };
